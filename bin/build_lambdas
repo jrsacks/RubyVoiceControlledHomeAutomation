@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+lambda_dir="code/lambda/"
+mkdir -p deploy/lib/ruby
+tar -xzf $lambda_dir/traveling-ruby-20150715-2.2.2-linux-x86_64.tar.gz -C deploy/lib/ruby
+cp $lambda_dir/node/*  deploy/
+cp -r $lambda_dir/ruby/*  deploy/
+pushd deploy
+zip -r rubyConf.zip .
+popd 
+mv deploy/rubyConf.zip .
+rm -rf deploy
