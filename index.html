@@ -1,0 +1,478 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Voice Controlled Home Automation in JavaScript</title>
+    <link rel="stylesheet" href="css/reveal.css">
+    <link rel="stylesheet" href="css/black.css">
+    <link rel="stylesheet" href="css/zenburn.css">
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section>
+          <h2>Voice Controlled</h2>
+          <h2>Home Automation</h2> 
+          <h2>in Ruby</h2>
+          <p>Jeff Sacks</p>
+        </section>
+        <section>
+          <h2>Overview</h2>
+          <div class='stretch'>
+            <ul>
+              <li>Questions - Interrupt at any time!</li>
+              <li>Introduction</li>
+              <li>Build HTTP based TV Remote</li>
+              <li>Build Skill(s) for Amazon Echo</li>
+              <li>Control a TV with just our voice</li>
+            </ul>
+            <div class='fragment'>
+              <p>Twitter: @jeff_sacks</p>
+              <p>GitHub: jrsacks</p>
+              <p>DRW (Chicago)</p>
+              <p>Ruby, JavaScript, Clojure</p>
+            </div>
+          </div>
+        </section>
+        <section>
+          <div class='stretch'>
+            <img src="jsWarning.png" />
+          </div>
+        </section>
+        <section>
+          <h2>Raspberry Pi</h2>
+          <div class='stretch'>
+            <div>
+              <ul>
+                <li>February 2014</li>
+                <li>No idea what to use it for</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+        <section>
+          <h2>TiVo</h2>
+          <div class='stretch'>
+            <div>
+              <ul>
+                <li>March 2014</li>
+                <li>Record, Pause, Playback!</li>
+                <li>A little bit of a life changer</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+        <section>
+          <h2>My TV Remote Circa 2014</h2>
+          <div class='stretch'>
+            <img src="old-remote.jpg" />
+            <img src="tivo-remote.jpg" />
+          </div>
+        </section>
+        <section>
+          <h2>TiVo App</h2>
+          <div class='stretch'>
+            <img src="tivoapp.jpg" />
+          </div>
+        </section>
+        <section>
+          <h2>There Must Be a Better Way</h2>
+          <div class='stretch'>
+            <img src="thinking_emoji.png" />
+          </div>
+        </section>
+        <section>
+          <h4>TiVo TCP Remote Protocol</h4>
+          <div class='stretch'>
+            <p class='fragment'>COMMAND {PARAMETER} {PARAMETER}...</p>
+            <p class='fragment'>FORCECH 602</p>
+            <p class='fragment'>TELEPORT GUIDE</p>
+            <p class='fragment'>TELEPORT LIVETV</p>
+          </div>
+        </section>
+        <section>
+          <h4>Sharp Aquos TCP Protocol</h4>
+          <div class='stretch'>
+            <p>{COMMAND}{PARAMTER}&ltCR&gt</p>
+            <p>4 Character length Command</p>
+            <p>4 Character length Parameter</p>
+            <ul>
+              <li class="fragment">Power: "POWR0   \r"</li>
+              <li class="fragment">Input: "IAVD3   \r"</li>
+              <li class="fragment">Volume: "VOLM18  \r"</li>
+              <li class="fragment">Mute: "MUTE2   \r"</li>
+            </ul>
+          </div>
+        </section>
+        <section>
+          <h4>Sinatra TV Remote Server</h4>
+          <div class='stretch'>
+            <pre><code data-trim data-noescape style='max-height:1000px;'>
+class TvRemoteWeb < Sinatra::Base
+  set :tv, EventMachine.connect(TV_IP, TV_PORT, SharpAquos)
+  set :tivo, EventMachine.connect(TIVO_IP, TIVO_PORT, Tivo)
+
+  get '/tv/volume/up'       { settings.tv.change_volume 1 }
+  get '/tv/volume/down'     { settings.tv.change_volume -1 }
+  get '/tv/volume/:vol'     { |vol| settings.tv.set_volume vol.to_i }
+  get '/tv/mute'            { settings.tv.send_command("MUTE","1") }
+  get '/tv/unmute'          { settings.tv.send_command("MUTE","2") }
+  get '/tv/power/off'       { settings.tv.send_command("POWR", "0") }
+  get '/tivo/:command/:val' { |command, val| settings.tivo.send_data "#{command} #{val}\r" }
+  get '/tivo/ch/:chan' do |chan|
+    settings.tv.send_command("POWR", "1")
+    settings.tv.send_command("IAVD", "1")
+    settings.tivo.send_data "FORCECH #{chan}\r"
+  end
+end
+            </code></pre>
+          </div>
+        </section>
+        <section>
+          <h4>TiVo EventMachine Connection Class</h4>
+          <div class='stretch'>
+            <pre><code data-trim data-noescape style='max-height:1000px;'>
+class Tivo < EventMachine::Connection
+  def receive_data(data)
+    puts "Tivo: #{data}"
+  end
+
+  def unbind
+    puts "Tivo: Disconnected"
+    reconnect TIVO_IP, TIVO_PORT
+  end
+end
+            </code></pre>
+          </div>
+        </section>
+        <section>
+          <h4>TV EventMachine Connection Class Part 1</h4>
+          <div class='stretch'>
+            <pre><code data-trim data-noescape style='max-height:1000px;'>
+class SharpAquos < EventMachine::Connection
+  def post_init
+    @volume = nil
+    @timer = EM::PeriodicTimer.new(1) do
+      send_data "VOLM?   \r" if @volume.nil?
+    end
+  end
+
+  def receive_data(data)
+    puts "SharpAquos: #{data}"
+    unless data.match(/ERR/) or data.match(/OK/)
+      @volume = data.to_i 
+    end
+  end
+  
+  def unbind
+    puts "TV: Disconnected"
+    reconnect TV_IP, TV_PORT
+  end
+
+  ...
+end
+            </code></pre>
+          </div>
+        </section>
+        <section>
+          <h4>TV EventMachine Connection Class Part 2</h4>
+          <div class='stretch'>
+            <pre><code data-trim data-noescape style='max-height:1000px;'>
+class SharpAquos < EventMachine::Connection
+  ...
+
+  def send_command(command, val)
+    if command.length == 4
+      val += " " while val.length < 4
+      send_data "#{command}#{val}\r"
+    end
+  end
+
+  def change_volume(delta)
+    @volume += delta
+    send_command("VOLM", @volume.to_s)
+  end
+
+  def set_volume(volume)
+    @volume = volume
+    change_volume(0)
+  end
+end
+            </code></pre>
+          </div>
+        </section>
+        <section>
+          <h2>My Remote Circa 2015</h2>
+          <div class='stretch'>
+            <img src="sackremote.png" />
+          </div>
+        </section>
+        <section>
+          <h2>My Remote In March</h2>
+          <div class='stretch'>
+            <img src="tournament.png" />
+          </div>
+        </section>
+        <section>
+          <h2>Amazon Echo</h2>
+          <div class='stretch'>
+            <ul>
+              <li class="fragment">Alexa, What's your birthday?</li>
+              <li class="fragment">Alexa, What's the weather for tomorrow?</li>
+              <li class="fragment">Alexa, What time is it?</li>
+              <li class="fragment">Alexa, Who was the 23rd president?</li>
+              <li class="fragment">Alexa, What is your birthday?</li>
+              <li class="fragment">Alexa, Tell a joke.</li>
+            </ul>
+          </div>
+        </section>
+        <section>
+          <h2>What Is Alexa?</h2>
+          <div class='stretch'>
+            <img src="diagram.png" />
+          </div>
+        </section>
+        <section>
+          <h2>Echo Fun Facts</h2>
+          <div class='stretch'>
+            <p>June 25, 2015 Alexa Skills Kit Released</p>
+            <p>Write your own skill (app) for Alexa</p>
+            <p>Over 15,000 published skills</p>
+            <p>Pandora, Dominos Pizza, Uber, Jeff's TV</p>
+          </div>
+        </section>
+        <section>
+          <h2>Hello World</h2>
+          <div class='stretch'>
+            <h4>AWS Lambda Function:</h4>
+            <pre><code data-trim data-noescape>
+exports.handler = function (event, context) {
+  context.succeed({
+    version: "1.0",
+    response: {
+      outputSpeech: {
+        type: "PlainText",
+        text: "Hello Ruby Conf.  I'm glad this demo worked!" 
+      },
+      shouldEndSession: true
+    }
+  });
+}
+          </code></pre>
+          </div>
+        </section>
+        <section>
+          <h2>Interaction Model</h2>
+          <div class='stretch'>
+            <div class='fragment'>
+              <p>Utterances</p>
+              <pre><code data-trim data-noescape>
+RepeatName To say {name}
+              </code></pre>
+            </div>
+            <div class='fragment'>
+              <p>Intents</p>
+              <pre><code data-trim data-noescape>
+{
+  "intents": [
+    { 
+      "intent": "RepeatName", 
+      "slots": [{"name":"name","type":"AMAZON.US_FIRST_NAME"}]
+    }
+  ]
+}
+              </code></pre>
+            </div>
+          </div>
+        </section>
+        <section>
+          <h2>Skill Setup Part 1</h2>
+          <div class='stretch'>
+            <img src="setup1.png" />
+          </div>
+        </section>
+        <section>
+          <h2>Skill Setup Part 2</h2>
+          <div class='stretch'>
+            <img src="setup2.png" />
+          </div>
+        </section>
+        <section>
+          <h2>Repeater Skill</h2>
+          <div class='stretch'>
+            <h4>AWS Lambda Function:</h4>
+            <pre><code data-trim data-noescape>
+require 'json'
+
+event = JSON.parse(ARGV[0])
+name = event["request"]["intent"]["slots"]["name"]["value"]
+
+STDOUT.puts({
+  version: "1.0", 
+  response: {
+    outputSpeech: {
+      type: "PlainText", 
+      text: "I heard you say #{name}." 
+    }, 
+    shouldEndSession: true
+  }
+}.to_json)
+            </code></pre>
+          </div>
+        </section>
+        <section>
+          <h2>AWS Simple Queue Service (SQS)</h2>
+          <div class='stretch'>
+            <ul>
+              <li>SendMessage</li>
+              <li>ReceiveMessage</li>
+              <li>DeleteMessage</li>
+            </ul>
+          </div>
+        </section>
+        <section>
+          <h4>Sending to AWS SQS:</h4>
+          <div class='stretch'>
+            <pre><code data-trim data-noescape style='max-height:1000px;'>
+            </code></pre>
+          </div>`
+        </section>
+        <section>
+          <h4>Listening to AWS SQS:</h4>
+          <div class='stretch'>
+            <pre><code data-trim data-noescape>
+            </code></pre>
+          </div>`
+        </section>
+        <section>
+          <h4>TV Remote Intents</h4>
+          <div class='stretch'>
+            <pre><code data-trim data-noescape style='max-height:1000px;'>
+{
+  "intents": [
+    {"intent": "ChangeChannel", 
+        "slots": [{"name": "Channel","type": "LIST_OF_CHANNELS"}]},
+    { "intent": "Off"},
+    { "intent": "VolUp"},
+    { "intent": "VolDown"},
+    { "intent": "VolSet", 
+        "slots": [{"name":"Volume","type":"AMAZON.NUMBER"}]},
+    { "intent": "Back"},
+    { "intent": "Mute"},
+    { "intent": "UnMute"}
+  ]
+}
+            </code></pre>
+          </div>
+        </section>
+        <section>
+          <h4>Custom Slot Types</h4>
+          <div class='stretch'>
+            <pre><code data-trim data-noescape style='max-height:1000px;'>
+          LIST_OF_CHANNELS	CBS | NBC | ABC | WGN | FOX | ESPN | ESPN2 | CSN | BTN...
+            </code></pre>
+          </div>
+        </section>
+        <section>
+          <h4>TV Remote Utterances</h4>
+          <div class='stretch'>
+            <pre><code data-trim data-noescape style='max-height:1000px;'>
+Off turn off
+ChangeChannel turn on {Channel}
+ChangeChannel change to {Channel}
+VolUp turn up the volume
+VolUp make it louder
+VolUp be louder
+VolDown turn down the volume
+VolDown make it softer
+VolDown make it quieter
+VolSet set the volume to {Volume}
+VolSet make the volume {Volume}
+Back switch back
+Back switch to the last channel
+Back go back
+Mute mute
+UnMute unmute
+            </code></pre>
+          </div>
+        </section>
+        <section>
+          <h4>TV Skill</h4>
+          <div class='stretch'>
+            <pre><code data-trim data-noescape style='max-height:1000px;'>
+            </code></pre>
+          </div>
+        </section>
+        <section>
+          <h4>Connecting SQS to the Remote</h4>
+          <div class='stretch'>
+            <pre><code data-trim data-noescape style='max-height:1000px;'>
+#!/usr/bin/env sh
+
+set -e
+
+while true; do
+  node sqsListener.js | xargs -I{} curl http://127.0.0.1:3000{}
+done
+            </code></pre>
+          </div>
+        </section>
+        <section>
+          <h4>Video Demo</h4>
+          <div class='stretch'>
+          </div>
+        </section>
+        <section>
+          <h4>Links</h4>
+          <div class='stretch'>
+            <ul>
+              <li>
+                <a href='https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit/getting-started-guide'>
+                  Getting Started With Alexa Skills Kit
+                </a>
+              </li>
+              <li>
+                <a href='https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit/docs/alexa-skills-kit-interface-reference'>
+                  JSON Interface Reference for Custom Skills
+                </a>
+              </li>
+              <li>
+                <a href='https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit/getting-started-guide'>
+                  Alexa Voice Service API Overview
+                </a>
+              </li>
+              <li>
+                <a href='https://www.tivo.com/assets/images/abouttivo/resources/downloads/brochures/TiVo_TCP_Network_Remote_Control_Protocol.pdf'>
+                  TiVo TCP Remote Control Protocol
+                </a>
+              </li>
+              <li>
+                <a href='http://www.manualslib.com/manual/318372/Sharp-Aquos-Lc-70le632u.html?page=66#manual '>
+                  Sharp Aquos TCP Protocol
+                </a>
+              </li>
+            </ul>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script src="lib/js/head.min.js"></script>
+    <script src="js/reveal.js"></script>
+
+    <script>
+      Reveal.initialize({
+        width: '100%',
+        margin: .03,
+        history: true,
+        dependencies: [
+          { src: 'plugin/markdown/marked.js' },
+          { src: 'plugin/markdown/markdown.js' },
+          { src: 'plugin/notes/notes.js', async: true },
+          { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+        ]
+      });
+    </script>
+  </body>
+</html>
