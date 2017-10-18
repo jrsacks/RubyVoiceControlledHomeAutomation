@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="css/reveal.css">
     <link rel="stylesheet" href="css/black.css">
     <link rel="stylesheet" href="css/zenburn.css">
+    <link rel="stylesheet" href="css/custom.css">
   </head>
   <body>
     <div class="reveal">
@@ -108,7 +109,7 @@
         <section>
           <h4>Sinatra TV Remote Server</h4>
           <div class='stretch'>
-            <pre><code data-trim data-noescape style='max-height:1000px;'>
+            <pre><code data-trim data-noescape style='max-height:600px;'>
 class TvRemoteWeb < Sinatra::Base
   set :tv, EventMachine.connect(TV_IP, TV_PORT, SharpAquos)
   set :tivo, EventMachine.connect(TIVO_IP, TIVO_PORT, Tivo)
@@ -132,7 +133,7 @@ end
         <section>
           <h4>TiVo EventMachine Connection Class</h4>
           <div class='stretch'>
-            <pre><code data-trim data-noescape style='max-height:1000px;'>
+            <pre><code data-trim data-noescape style='max-height:600px;'>
 class Tivo < EventMachine::Connection
   def receive_data(data)
     puts "Tivo: #{data}"
@@ -149,7 +150,7 @@ end
         <section>
           <h4>TV EventMachine Connection Class Part 1</h4>
           <div class='stretch'>
-            <pre><code data-trim data-noescape style='max-height:1000px;'>
+            <pre><code data-trim data-noescape style='max-height:600px;'>
 class SharpAquos < EventMachine::Connection
   def post_init
     @volume = nil
@@ -178,7 +179,7 @@ end
         <section>
           <h4>TV EventMachine Connection Class Part 2</h4>
           <div class='stretch'>
-            <pre><code data-trim data-noescape style='max-height:1000px;'>
+            <pre><code data-trim data-noescape style='max-height:600px;'>
 class SharpAquos < EventMachine::Connection
   ...
 
@@ -243,6 +244,46 @@ end
           </div>
         </section>
         <section>
+          <h2>Custom Skill</h2>
+          <div class='stretch'>
+            <table>
+              <thead>
+                <tr>
+                  <th>AWS Lambda</th>
+                  <th>Self Hosted Web Service</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    No Compute Resources To Manage
+                  </td>
+                  <td>
+                    No Limitations
+                  </td>
+                </tr>
+                <tr>
+                  <td>No SSL Cert</td>
+                  <td>Requires SSL</td>
+                </tr>
+                <tr>
+                  <td>
+                    AWS Access Control/Security
+                  </td>
+                  <td>
+                    DIY Access Control/Security
+                  </td>
+                </tr>
+                <tr>
+                  <td>Free</td>
+                  <td></td>
+                </tr>
+              </tbody>
+
+            </table>
+          </div>
+        </section>
+        <section>
           <h2>Hello World</h2>
           <div class='stretch'>
             <h4>AWS Lambda Function:</h4>
@@ -259,6 +300,29 @@ exports.handler = function (event, context) {
     }
   });
 }
+          </code></pre>
+          </div>
+        </section>
+        <section>
+          <h2>Ruby In Lambda</h2>
+          <div class='stretch'>
+
+          </div>
+        </section>
+        <section>
+          <h2>Hello World In Ruby</h2>
+          <div class='stretch'>
+            <h4>AWS Lambda Function:</h4>
+            <pre><code data-trim data-noescape>
+
+var exec = require('child_process').exec;
+
+exports.handler = function(event, context) {
+  exec("./lib/ruby/bin/ruby hello_world.rb", function(error, stdout, stderr) {
+    context.succeed(JSON.parse(stdout));
+  });
+};
+
           </code></pre>
           </div>
         </section>
@@ -334,7 +398,47 @@ STDOUT.puts({
         <section>
           <h4>Sending to AWS SQS:</h4>
           <div class='stretch'>
-            <pre><code data-trim data-noescape style='max-height:1000px;'>
+            <pre><code data-trim data-noescape style='max-height:600px;'>
+$LOAD_PATH.unshift(File.dirname(__FILE__))
+require 'aws-sigv4'
+require 'net/http'
+require 'json'
+
+def send_to_sqs(key, secret, queue, message)
+  url = queue + "?Action=SendMessage&MessageBody=#{URI.encode_www_form_component(message)}"
+  signer = Aws::Sigv4::Signer.new(
+    service: 'sqs',
+    region: queue.split('.')[1],
+    access_key_id: key,
+    secret_access_key: secret
+  )
+  signed_url = signer.presign_url(http_method: "GET", url: url)
+
+  uri = URI.parse(queue)
+  https = Net::HTTP.new(uri.host, uri.port)
+  https.use_ssl = true
+  request = Net::HTTP::Get.new(signed_url)
+  https.request(request)
+end
+
+key = ENV["KEY"]
+secret = ENV["SECRET"]
+queue = ENV["SQS_QUEUE"]
+
+event = JSON.parse(ARGV[0])
+name = event["request"]["intent"]["slots"]["name"]["value"]
+send_to_sqs(key, secret, queue, name)
+
+STDOUT.puts({
+  version: "1.0", 
+  response: {
+    outputSpeech: {
+      type: "PlainText", 
+      text: "I heard you say #{name}." 
+    }, 
+    shouldEndSession: true
+  }
+}.to_json)
             </code></pre>
           </div>`
         </section>
@@ -342,13 +446,23 @@ STDOUT.puts({
           <h4>Listening to AWS SQS:</h4>
           <div class='stretch'>
             <pre><code data-trim data-noescape>
+require 'aws-sdk'
+
+options = {
+  :queue_url => ENV["SQS_QUEUE"], 
+  :max_number_of_messages => 1, 
+  :wait_time_seconds => 20
+}
+Aws::SQS::Client.new(region: 'us-east-1')
+  .receive_message(options)
+  .messages.each { |m| puts m.body }
             </code></pre>
           </div>`
         </section>
         <section>
           <h4>TV Remote Intents</h4>
           <div class='stretch'>
-            <pre><code data-trim data-noescape style='max-height:1000px;'>
+            <pre><code data-trim data-noescape style='max-height:600px;'>
 {
   "intents": [
     {"intent": "ChangeChannel", 
@@ -369,7 +483,7 @@ STDOUT.puts({
         <section>
           <h4>Custom Slot Types</h4>
           <div class='stretch'>
-            <pre><code data-trim data-noescape style='max-height:1000px;'>
+            <pre><code data-trim data-noescape style='max-height:600px;'>
           LIST_OF_CHANNELS	CBS | NBC | ABC | WGN | FOX | ESPN | ESPN2 | CSN | BTN...
             </code></pre>
           </div>
@@ -377,7 +491,7 @@ STDOUT.puts({
         <section>
           <h4>TV Remote Utterances</h4>
           <div class='stretch'>
-            <pre><code data-trim data-noescape style='max-height:1000px;'>
+            <pre><code data-trim data-noescape style='max-height:600px;'>
 Off turn off
 ChangeChannel turn on {Channel}
 ChangeChannel change to {Channel}
@@ -400,20 +514,110 @@ UnMute unmute
         <section>
           <h4>TV Skill</h4>
           <div class='stretch'>
-            <pre><code data-trim data-noescape style='max-height:1000px;'>
+            <pre><code data-trim data-noescape style='max-height:600px;'>
+$LOAD_PATH.unshift(File.dirname(__FILE__))
+require 'aws-sigv4'
+require 'net/http'
+require 'json'
+
+def send_to_sqs(key, secret, queue, message)
+  url = queue + "?Action=SendMessage&MessageBody=#{URI.encode_www_form_component(message)}"
+  signer = Aws::Sigv4::Signer.new(
+    service: 'sqs',
+    region: queue.split('.')[1],
+    access_key_id: key,
+    secret_access_key: secret
+  )
+  signed_url = signer.presign_url(http_method: "GET", url: url)
+
+  uri = URI.parse(queue)
+  https = Net::HTTP.new(uri.host, uri.port)
+  https.use_ssl = true
+  request = Net::HTTP::Get.new(signed_url)
+  https.request(request)
+end
+
+def lookup_channel(val)
+  return val.to_s if val.to_i > 0
+  channels = {
+    "cbs" => 602, "nbc" => 605, "abc" => 607,
+    "wgn" => 609, "fox" => 612, "espn" => 681,
+    "espn2" => 682 
+  }
+  channels[val.downcase].to_s
+end
+
+key = ENV["KEY"]
+secret = ENV["SECRET"]
+queue = ENV["SQS_QUEUE"]
+
+event = JSON.parse(ARGV[0])
+intent = event["request"]["intent"]
+intent_name = intent["name"]
+
+commands = {
+  "Off"               => "/tv/power/off",
+  "VolUp"             => "/tv/volume/up",
+  "VolDown"           => "/tv/volume/down",
+  "Mute"              => "/tv/mute",
+  "UnMute"            => "/tv/unmute",
+  "Back"              => "/tivo/IRCODE/ENTER",
+  "VolSet"            => "/tv/volume/",
+  "ChangeChannel"     => "/tivo/ch/"
+}
+
+responses = {
+  "Off"               => "Now Turning off the TV",
+  "VolUp"             => "Turning Volume Up",
+  "VolDown"           => "Turning Volume Down",
+  "Mute"              => "Muting",
+  "UnMute"            => "Unmuting",
+  "Back"              => "Switching Back",
+  "VolSet"            => "Changing the volume to ",
+  "ChangeChannel"     => "Changing the channel to "
+}
+
+command = commands[intent_name]
+alexa_response = responses[intent_name]
+
+if intent_name == "VolSet"
+  volume = intent["slots"]["Volume"]["value"].to_s
+  command += volume
+  alexa_response += volume
+end
+
+if intent_name == "ChangeChannel"
+  channel = intent["slots"]["Channel"]["value"]
+  channel_number = lookup_channel(channel)
+  command += channel_number
+  alexa_response += channel_number
+end
+
+send_to_sqs(key, secret, queue, command)
+
+STDOUT.puts({
+  version: "1.0", 
+  response: {
+    outputSpeech: {
+      type: "PlainText", 
+      text: alexa_response
+    }, 
+    shouldEndSession: true
+  }
+}.to_json)
             </code></pre>
           </div>
         </section>
         <section>
           <h4>Connecting SQS to the Remote</h4>
           <div class='stretch'>
-            <pre><code data-trim data-noescape style='max-height:1000px;'>
+            <pre><code data-trim data-noescape style='max-height:600px;'>
 #!/usr/bin/env sh
 
 set -e
 
 while true; do
-  node sqsListener.js | xargs -I{} curl http://127.0.0.1:3000{}
+  ruby sqs_listener.rb | xargs -I{} curl http://127.0.0.1:4567/{}
 done
             </code></pre>
           </div>
@@ -440,6 +644,16 @@ done
               <li>
                 <a href='https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit/getting-started-guide'>
                   Alexa Voice Service API Overview
+                </a>
+              </li>
+              <li>
+                <a href='http://www.adomokos.com/2016/06/using-ruby-in-aws-lambda.html'>
+                  Using Ruby In AWS Lambda
+                </a>
+              </li>
+              <li>
+                <a href='http://phusion.github.io/traveling-ruby/'>
+                  Traveling Ruby
                 </a>
               </li>
               <li>
