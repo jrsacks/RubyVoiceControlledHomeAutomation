@@ -22,11 +22,11 @@
           <h2>Overview</h2>
           <div class='stretch'>
             <ul>
-              <li>Questions - Interrupt at any time!</li>
-              <li>Introduction</li>
-              <li>Build HTTP based TV Remote</li>
-              <li>Build Skill(s) for Amazon Echo</li>
-              <li>Control a TV with just our voice</li>
+              <li class='fragment'>Questions - Interrupt at any time!</li>
+              <li class='fragment'>Introduction</li>
+              <li class='fragment'>Build HTTP based TV Remote</li>
+              <li class='fragment'>Build Skill(s) for Amazon Echo</li>
+              <li class='fragment'>Control a TV with just our voice</li>
             </ul>
             <div class='fragment'>
               <p>Twitter: @jeff_sacks</p>
@@ -42,24 +42,27 @@
           </div>
         </section>
         <section>
-          <h2>Raspberry Pi</h2>
+          <h2>February 2014</h2>
           <div class='stretch'>
+            <img style="width: 220px; height: 220px;" src="piLogo.png" />
+            <img style="width: 220px; height: 220px;" src="pi.jpeg" />
             <div>
               <ul>
-                <li>February 2014</li>
-                <li>No idea what to use it for</li>
+                <li>Raspberry Pi</li>
+                <li class='fragment'>No idea what to use it for</li>
               </ul>
             </div>
           </div>
         </section>
         <section>
-          <h2>TiVo</h2>
+          <h2>March 2014</h2>
           <div class='stretch'>
+            <img src="tivo.jpeg" />
             <div>
               <ul>
-                <li>March 2014</li>
-                <li>Record, Pause, Playback!</li>
-                <li>A little bit of a life changer</li>
+                <li>TiVo</li>
+                <li class='fragment'>Record, Pause, Playback!</li>
+                <li class='fragment'>A little bit of a life changer</li>
               </ul>
             </div>
           </div>
@@ -120,12 +123,12 @@ class TvRemoteWeb < Sinatra::Base
   get '/tv/mute'            { settings.tv.send_command("MUTE","1") }
   get '/tv/unmute'          { settings.tv.send_command("MUTE","2") }
   get '/tv/power/off'       { settings.tv.send_command("POWR", "0") }
-  get '/tivo/:command/:val' { |command, val| settings.tivo.send_data "#{command} #{val}\r" }
   get '/tivo/ch/:chan' do |chan|
     settings.tv.send_command("POWR", "1")
     settings.tv.send_command("IAVD", "1")
     settings.tivo.send_data "FORCECH #{chan}\r"
   end
+  get '/tivo/:command/:val' { |command, val| settings.tivo.send_data "#{command} #{val}\r" }
 end
             </code></pre>
           </div>
@@ -148,7 +151,7 @@ end
           </div>
         </section>
         <section>
-          <h4>TV EventMachine Connection Class Part 1</h4>
+          <h4>TV EventMachine Connection Class</h4>
           <div class='stretch'>
             <pre><code data-trim data-noescape style='max-height:600px;'>
 class SharpAquos < EventMachine::Connection
@@ -170,18 +173,6 @@ class SharpAquos < EventMachine::Connection
     puts "TV: Disconnected"
     reconnect TV_IP, TV_PORT
   end
-
-  ...
-end
-            </code></pre>
-          </div>
-        </section>
-        <section>
-          <h4>TV EventMachine Connection Class Part 2</h4>
-          <div class='stretch'>
-            <pre><code data-trim data-noescape style='max-height:600px;'>
-class SharpAquos < EventMachine::Connection
-  ...
 
   def send_command(command, val)
     if command.length == 4
@@ -223,7 +214,7 @@ end
               <li class="fragment">Alexa, What's the weather for tomorrow?</li>
               <li class="fragment">Alexa, What time is it?</li>
               <li class="fragment">Alexa, Who was the 23rd president?</li>
-              <li class="fragment">Alexa, What is your birthday?</li>
+              <li class="fragment">Alexa, How old is Tom Brady?</li>
               <li class="fragment">Alexa, Tell a joke.</li>
             </ul>
           </div>
@@ -239,7 +230,8 @@ end
           <div class='stretch'>
             <p>June 25, 2015 Alexa Skills Kit Released</p>
             <p>Write your own skill (app) for Alexa</p>
-            <p>Over 15,000 published skills</p>
+            <p>Over 25,000 published skills</p>
+            <p>Over 15 million Echo devices sold</p>
             <p>Pandora, Dominos Pizza, Uber, Jeff's TV</p>
           </div>
         </section>
@@ -286,8 +278,10 @@ end
         <section>
           <h2>Hello World</h2>
           <div class='stretch'>
-            <h4>AWS Lambda Function:</h4>
-            <pre><code data-trim data-noescape>
+            <h3>Alexa, open the greeter</h3>
+            <div class='fragment'>
+              <h4>AWS Lambda Function:</h4>
+              <pre><code data-trim data-noescape>
 exports.handler = function (event, context) {
   context.succeed({
     version: "1.0",
@@ -300,19 +294,24 @@ exports.handler = function (event, context) {
     }
   });
 }
-          </code></pre>
+            </code></pre></div>
           </div>
         </section>
         <section>
           <h2>Ruby In Lambda</h2>
           <div class='stretch'>
-
+            <ul>
+              <li class='fragment'>Ruby Binary - Traveling Ruby (Linux x86_64)</li>
+              <li class='fragment'>Shell out to execute ruby binary</li>
+              <li class='fragment'>Package it all together in a zip file</li>
+              <li class='fragment'>Upload to S3 or via Lambda web UI</li>
+            </ul>
           </div>
         </section>
         <section>
           <h2>Hello World In Ruby</h2>
           <div class='stretch'>
-            <h4>AWS Lambda Function:</h4>
+            <h3>Alexa, open the Ruby greeter</h3>
             <pre><code data-trim data-noescape>
 
 var exec = require('child_process').exec;
@@ -324,6 +323,20 @@ exports.handler = function(event, context) {
 };
 
           </code></pre>
+            <pre><code data-trim data-noescape>
+require 'json'
+
+STDOUT.puts({
+  version: "1.0", 
+  response: {
+    outputSpeech: {
+      type: "PlainText", 
+      text: "Hello from Ruby." 
+    }, 
+    shouldEndSession: true
+  }
+}.to_json)
+            </code></pre>
           </div>
         </section>
         <section>
@@ -365,7 +378,7 @@ RepeatName To say {name}
         <section>
           <h2>Repeater Skill</h2>
           <div class='stretch'>
-            <h4>AWS Lambda Function:</h4>
+            <h3>Alexa, tell the repeater to say ...</h3>
             <pre><code data-trim data-noescape>
 require 'json'
 
@@ -396,7 +409,7 @@ STDOUT.puts({
           </div>
         </section>
         <section>
-          <h4>Sending to AWS SQS:</h4>
+          <h4>Alexa, tell the message sender to say...</h4>
           <div class='stretch'>
             <pre><code data-trim data-noescape style='max-height:600px;'>
 $LOAD_PATH.unshift(File.dirname(__FILE__))
@@ -457,7 +470,7 @@ Aws::SQS::Client.new(region: 'us-east-1')
   .receive_message(options)
   .messages.each { |m| puts m.body }
             </code></pre>
-          </div>`
+          </div>
         </section>
         <section>
           <h4>TV Remote Intents</h4>
@@ -617,7 +630,7 @@ STDOUT.puts({
 set -e
 
 while true; do
-  ruby sqs_listener.rb | xargs -I{} curl http://127.0.0.1:4567/{}
+  ruby sqs_listener.rb | xargs -I{} curl http://127.0.0.1:4567{}
 done
             </code></pre>
           </div>
