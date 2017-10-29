@@ -42,33 +42,23 @@
           </div>
         </section>
         <section>
-          <h2>February 2014</h2>
+          <h2>Raspberry Pi - February 2014</h2>
           <div class='stretch'>
             <img style="width: 220px; height: 220px;" src="piLogo.png" />
             <img style="width: 220px; height: 220px;" src="pi.jpeg" />
             <div>
-              <ul>
-                <li>Raspberry Pi</li>
-                <li class='fragment'>No idea what to use it for</li>
-              </ul>
+              <p class='fragment'>No idea what to use it for</p>
             </div>
           </div>
         </section>
         <section>
-          <h2>March 2014</h2>
+          <h2>TiVo March 2014</h2>
           <div class='stretch'>
             <img src="tivo.jpeg" />
-            <div>
-              <ul>
-                <li>TiVo</li>
-                <li class='fragment'>Record, Pause, Playback!</li>
-                <li class='fragment'>A little bit of a life changer</li>
-              </ul>
-            </div>
           </div>
         </section>
         <section>
-          <h2>My TV Remote Circa 2014</h2>
+          <h2>My TV Remote (2014)</h2>
           <div class='stretch'>
             <img src="old-remote.jpg" />
             <img src="tivo-remote.jpg" />
@@ -90,9 +80,11 @@
           <h4>TiVo TCP Remote Protocol</h4>
           <div class='stretch'>
             <p class='fragment'>COMMAND {PARAMETER} {PARAMETER}...</p>
-            <p class='fragment'>FORCECH 602</p>
-            <p class='fragment'>TELEPORT GUIDE</p>
-            <p class='fragment'>TELEPORT LIVETV</p>
+            <div class='fragment'>
+              <p>FORCECH 602</p>
+              <p>TELEPORT GUIDE</p>
+              <p>TELEPORT LIVETV</p>
+            </div>
           </div>
         </section>
         <section>
@@ -195,7 +187,7 @@ end
           </div>
         </section>
         <section>
-          <h2>My Remote Circa 2015</h2>
+          <h2>My Remote (2015)</h2>
           <div class='stretch'>
             <img src="sackremote.png" />
           </div>
@@ -409,6 +401,23 @@ STDOUT.puts({
           </div>
         </section>
         <section>
+          <h4>Listening to AWS SQS:</h4>
+          <div class='stretch'>
+            <pre><code data-trim data-noescape>
+require 'aws-sdk'
+
+options = {
+  :queue_url => ENV["SQS_QUEUE"], 
+  :max_number_of_messages => 1, 
+  :wait_time_seconds => 20
+}
+Aws::SQS::Client.new(region: 'us-east-1')
+  .receive_message(options)
+  .messages.each { |m| puts m.body }
+            </code></pre>
+          </div>
+        </section>
+        <section>
           <h4>Alexa, tell the message sender to say...</h4>
           <div class='stretch'>
             <pre><code data-trim data-noescape style='max-height:600px;'>
@@ -454,23 +463,6 @@ STDOUT.puts({
 }.to_json)
             </code></pre>
           </div>`
-        </section>
-        <section>
-          <h4>Listening to AWS SQS:</h4>
-          <div class='stretch'>
-            <pre><code data-trim data-noescape>
-require 'aws-sdk'
-
-options = {
-  :queue_url => ENV["SQS_QUEUE"], 
-  :max_number_of_messages => 1, 
-  :wait_time_seconds => 20
-}
-Aws::SQS::Client.new(region: 'us-east-1')
-  .receive_message(options)
-  .messages.each { |m| puts m.body }
-            </code></pre>
-          </div>
         </section>
         <section>
           <h4>TV Remote Intents</h4>
@@ -652,11 +644,6 @@ done
               <li>
                 <a href='https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit/docs/alexa-skills-kit-interface-reference'>
                   JSON Interface Reference for Custom Skills
-                </a>
-              </li>
-              <li>
-                <a href='https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit/getting-started-guide'>
-                  Alexa Voice Service API Overview
                 </a>
               </li>
               <li>
